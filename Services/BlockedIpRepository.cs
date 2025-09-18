@@ -1,9 +1,9 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using System.Collections.Generic;
-using System.Linq; // Add this using directive for LINQ extension methods
+using System.Linq;
 using Microsoft.Maui.Storage;
-using System; // <-- Add this using directive for StringComparer
+using System;
 
 namespace IP_Blocker_Logger.Services;
 
@@ -28,7 +28,7 @@ public class BlockedIpRepository
                 {
                     var items = JsonSerializer.Deserialize<List<BlockedIpEntry>>(json) ?? new List<BlockedIpEntry>();
                     foreach (var i in items)
-                        _cache[i.Address] = i;
+                        _cache[i.IpAddress] = i;
                 }
                 catch { }
             }
@@ -37,18 +37,18 @@ public class BlockedIpRepository
 
     void Persist()
     {
-        var list = _cache.Values.OrderBy(v => v.Address).ToList();
+        var list = _cache.Values.OrderBy(v => v.IpAddress).ToList();
         Preferences.Set(Key, JsonSerializer.Serialize(list));
     }
 
-    public IEnumerable<BlockedIpEntry> GetAll() => _cache.Values.OrderBy(v => v.Address);
+    public IEnumerable<BlockedIpEntry> GetAll() => _cache.Values.OrderBy(v => v.IpAddress);
 
     public bool Add(string ip)
     {
         ip = ip.Trim();
         if (!System.Net.IPAddress.TryParse(ip, out _)) return false;
         if (_cache.ContainsKey(ip)) return false;
-        _cache[ip] = new BlockedIpEntry { Address = ip, Enabled = true };
+        _cache[ip] = new BlockedIpEntry { IpAddress = ip, Enabled = true };
         Persist();
         return true;
     }
@@ -68,11 +68,11 @@ public class BlockedIpRepository
         }
     }
 
-    public IReadOnlySet<string> EnabledSet() => _cache.Values.Where(v => v.Enabled).Select(v => v.Address).ToHashSet(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlySet<string> EnabledSet() => _cache.Values.Where(v => v.Enabled).Select(v => v.IpAddress).ToHashSet(StringComparer.OrdinalIgnoreCase);
 }
 
 public class BlockedIpEntry
 {
-    public string Address { get; set; } = string.Empty;
+    public string IpAddress { get; set; } = string.Empty;
     public bool Enabled { get; set; }
 }

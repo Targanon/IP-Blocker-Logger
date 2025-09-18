@@ -1,18 +1,15 @@
 #if ANDROID
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Threading;
-using IP_Blocker_Logger.Services;
-
 using Android.App;
 using Android.Content;
 using Android.Net;
 using Android.OS;
 using Java.IO;
-using Microsoft.Maui;
 using Android.Runtime;
+using IP_Blocker_Logger.Services;
 
 namespace IPBlockerLogger;
 
@@ -54,7 +51,6 @@ public class FirewallVpnService : VpnService
         {
             try
             {
-                // Start foreground immediately to prevent ANR
                 StartForeground(NotificationId, BuildStatusNotification("Starting..."));
                 System.Diagnostics.Debug.WriteLine("FirewallVpnService: Started foreground");
                 
@@ -76,20 +72,13 @@ public class FirewallVpnService : VpnService
     {
         try
         {
-            var services = IPlatformApplication.Current?.Services;
-            if (services != null)
-            {
-                var repo = services.GetService<BlockedIpRepository>();
-                if (repo != null)
-                {
-                    _blocked = new HashSet<string>(repo.EnabledSet(), StringComparer.OrdinalIgnoreCase);
-                    System.Diagnostics.Debug.WriteLine($"FirewallVpnService: Loaded {_blocked.Count} blocked IPs");
-                }
-            }
+            _blocked = SharedDataService.GetBlockedIps();
+            System.Diagnostics.Debug.WriteLine($"FirewallVpnService: Loaded {_blocked.Count} blocked IPs");
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"FirewallVpnService: Error loading rules: {ex}");
+            _blocked = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }
     }
 
@@ -103,7 +92,6 @@ public class FirewallVpnService : VpnService
             builder.AddDnsServer("1.1.1.1");
             builder.AddRoute("0.0.0.0", 0);
             
-            // Add IPv6 support more carefully
             try
             {
                 builder.AddRoute("::", 0);
@@ -122,8 +110,8 @@ public class FirewallVpnService : VpnService
             }
 
             _running = true;
-            _worker = new Thread(PacketLoop) { IsBackground = true, Name = "FirewallVpnWorker" };
-            _worker.Start();
+            _worker = new Thread(new ParameterizedThreadStart(PacketLoop)) { IsBackground = true, Name = "FirewallVpnWorker" };
+            _worker.Start(null);
             
             UpdateNotification();
             System.Diagnostics.Debug.WriteLine("FirewallVpnService: VPN interface established successfully");
@@ -135,18 +123,18 @@ public class FirewallVpnService : VpnService
         }
     }
 
-    void PacketLoop()
+    void PacketLoop(object? obj)
     {
         System.Diagnostics.Debug.WriteLine("FirewallVpnService: Packet loop started");
         
         try
         {
-            var services = IPlatformApplication.Current?.Services;
-            var logRepo = services?.GetService<FirewallLogRepository>();
             var buffer = new byte[4096];
 
-            using var input = new FileInputStream(_tunFd!.FileDescriptor);
-            using var output = new FileOutputStream(_tunFd!.FileDescriptor);
+            if (_tunFd?.FileDescriptor == null) return;
+
+            using var input = new FileInputStream(_tunFd.FileDescriptor);
+            using var output = new FileOutputStream(_tunFd.FileDescriptor);
 
             while (_running && _tunFd != null)
             {
@@ -175,20 +163,16 @@ public class FirewallVpnService : VpnService
                             string dstIp = new IPAddress(new ReadOnlySpan<byte>(buffer, 16, 4)).ToString();
                             bool blocked = _blocked.Contains(dstIp) || _blocked.Contains(srcIp);
                             
+                            var logEntry = new FirewallLogEntry(DateTime.UtcNow, "?", srcIp, dstIp, blocked, "IPv4", null, null, null);
+                            SharedDataService.LogFirewallEntry(logEntry);
+                            
                             if (blocked)
                             {
-                                logRepo?.Add(new FirewallLogEntry(System.DateTime.UtcNow, "?", srcIp, dstIp, true, "IPv4", null, null, null));
-                                SendAttemptNotification(dstIp);
-                                continue; // Don't forward blocked packets
-                            }
-                            else
-                            {
-                                logRepo?.Add(new FirewallLogEntry(System.DateTime.UtcNow, "?", srcIp, dstIp, false, "IPv4", null, null, null));
+                                continue; // Drop the packet
                             }
                         }
                     }
 
-                    // Forward allowed packets
                     output.Write(buffer, 0, len);
                 }
                 catch (System.IO.IOException ex)
@@ -249,28 +233,6 @@ public class FirewallVpnService : VpnService
             builder.SetContentIntent(pendingIntent);
             
         return builder.Build();
-    }
-
-    void SendAttemptNotification(string ip)
-    {
-        try
-        {
-            var mgr = (NotificationManager?)GetSystemService(Context.NotificationService);
-            if (mgr != null)
-            {
-                var n = new Notification.Builder(this, NotificationChannelId)
-                    .SetContentTitle("Blocked IP")
-                    .SetContentText($"Blocked connection to: {ip}")
-                    .SetSmallIcon(Android.Resource.Drawable.IcDialogAlert)
-                    .SetAutoCancel(true)
-                    .Build();
-                mgr.Notify((int)SystemClock.UptimeMillis(), n);
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"FirewallVpnService: Error sending blocked notification: {ex}");
-        }
     }
 
     void CreateNotificationChannel()

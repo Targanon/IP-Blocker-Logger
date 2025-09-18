@@ -8,6 +8,7 @@ using IP_Blocker_Logger.Pages;
 using System.Reflection;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.ApplicationModel;
+using IPBlockerLogger;
 
 namespace IP_Blocker_Logger;
 
@@ -32,6 +33,11 @@ public static class MauiProgram
         // Pages
         builder.Services.AddSingleton<FirewallPage>();
 
-        return builder.Build();
+        var app = builder.Build();
+
+        // Initialize ServiceLocator
+        ServiceLocator.Initialize(app.Services);
+
+        return app;
     }
 }

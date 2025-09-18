@@ -7,9 +7,9 @@
     <SingleProject>true</SingleProject>
     <ImplicitUsings>enable</ImplicitUsings>
     <RuntimeIdentifiers>android-arm64;android-x64</RuntimeIdentifiers>
-    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">32.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion>35.0</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
-    <Description>IP Blocker and Logger</Description>
+    <Description>IP Blocker and Logger - Android Only</Description>
     <Copyright>Public end user licence and ME</Copyright>
 
     <!-- Application -->
@@ -45,10 +45,16 @@
   </ItemGroup>
 
   <!-- Linker preservation -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net9.0-android'">
+  <ItemGroup>
     <AndroidLinkPreserve Include="Microsoft.Maui" />
     <AndroidLinkPreserve Include="Microsoft.Maui.Controls" />
     <AndroidLinkPreserve Include="Microsoft.Maui.Hosting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <MauiXaml Update="Pages\FirewallPage.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </MauiXaml>
   </ItemGroup>
 
 </Project>

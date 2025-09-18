@@ -49,7 +49,7 @@ public partial class FirewallPage : ContentPage
 
     void RefreshIps()
     {
-        IpList.ItemsSource = _repo.GetAll().Select(x => new BlockedIpEntry { Address = x.Address, Enabled = x.Enabled }).ToList();
+        IpList.ItemsSource = _repo.GetAll().Select(x => new BlockedIpEntry { IpAddress = x.IpAddress, Enabled = x.Enabled }).ToList();
     }
 
     async Task LoopRefreshAsync(CancellationToken token)
@@ -184,7 +184,7 @@ public partial class FirewallPage : ContentPage
         {
             if (sender is Switch s && s.BindingContext is BlockedIpEntry entry)
             {
-                _repo.Toggle(entry.Address, e.Value);
+                _repo.Toggle(entry.IpAddress, e.Value);
                 _ = _controller.RefreshRulesAsync();
             }
         }
