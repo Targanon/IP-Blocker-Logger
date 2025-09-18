@@ -1,4 +1,5 @@
 #if ANDROID
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -11,10 +12,15 @@ using Android.Net;
 using Android.OS;
 using Java.IO;
 using Microsoft.Maui;
+using Android.Runtime;
 
-namespace IP_Blocker_Logger;
+namespace IPBlockerLogger;
 
-[Service(Name = "com.example.ipblocker.FirewallVpnService", Exported = true, Permission = "android.permission.BIND_VPN_SERVICE")]
+[Service(Name = "com.example.ipblocker.FirewallVpnService", 
+         Exported = true, 
+         Permission = "android.permission.BIND_VPN_SERVICE",
+         ForegroundServiceType = Android.Content.PM.ForegroundService.TypeConnectedDevice)]
+[Preserve(AllMembers = true)]
 public class FirewallVpnService : VpnService
 {
     const string NotificationChannelId = "firewall_channel";
@@ -34,142 +40,237 @@ public class FirewallVpnService : VpnService
     {
         base.OnCreate();
         CreateNotificationChannel();
+        System.Diagnostics.Debug.WriteLine("FirewallVpnService: OnCreate called");
     }
 
-    // Fully-qualified types to ensure exact signature match with base Service.OnStartCommand
     public override Android.App.StartCommandResult OnStartCommand(
         Android.Content.Intent? intent,
         Android.App.StartCommandFlags flags,
         int startId)
     {
+        System.Diagnostics.Debug.WriteLine("FirewallVpnService: OnStartCommand called");
+        
         if (!_running)
         {
-            StartForeground(NotificationId, BuildStatusNotification("Starting..."));
-            LoadRules();
-            StartVpn();
+            try
+            {
+                // Start foreground immediately to prevent ANR
+                StartForeground(NotificationId, BuildStatusNotification("Starting..."));
+                System.Diagnostics.Debug.WriteLine("FirewallVpnService: Started foreground");
+                
+                LoadRules();
+                StartVpn();
+                System.Diagnostics.Debug.WriteLine("FirewallVpnService: VPN started successfully");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"FirewallVpnService: Error in OnStartCommand: {ex}");
+                StopSelf();
+                return Android.App.StartCommandResult.NotSticky;
+            }
         }
         return Android.App.StartCommandResult.Sticky;
     }
 
-    void LoadRules()
+    static void LoadRules()
     {
-        var services = IPlatformApplication.Current?.Services;
-        var repo = services?.GetService<BlockedIpRepository>();
-        if (repo != null)
-            _blocked = repo.EnabledSet().ToHashSet(StringComparer.OrdinalIgnoreCase);
+        try
+        {
+            var services = IPlatformApplication.Current?.Services;
+            if (services != null)
+            {
+                var repo = services.GetService<BlockedIpRepository>();
+                if (repo != null)
+                {
+                    _blocked = new HashSet<string>(repo.EnabledSet(), StringComparer.OrdinalIgnoreCase);
+                    System.Diagnostics.Debug.WriteLine($"FirewallVpnService: Loaded {_blocked.Count} blocked IPs");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"FirewallVpnService: Error loading rules: {ex}");
+        }
     }
 
     void StartVpn()
     {
-        var builder = new VpnService.Builder(this);
-        builder.SetSession("IP Blocker VPN");
-        builder.AddAddress("10.123.0.1", 32);
-        builder.AddDnsServer("1.1.1.1");
-        builder.AddRoute("0.0.0.0", 0);
-        builder.AddRoute("::", 0);
-
-        _tunFd = builder.Establish();
-        if (_tunFd == null)
+        try
         {
-            StopSelf();
-            return;
-        }
+            var builder = new VpnService.Builder(this);
+            builder.SetSession("IP Blocker VPN");
+            builder.AddAddress("10.123.0.1", 32);
+            builder.AddDnsServer("1.1.1.1");
+            builder.AddRoute("0.0.0.0", 0);
+            
+            // Add IPv6 support more carefully
+            try
+            {
+                builder.AddRoute("::", 0);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"FirewallVpnService: IPv6 route failed: {ex.Message}");
+            }
 
-        _running = true;
-        _worker = new Thread(PacketLoop) { IsBackground = true, Name = "FirewallVpnWorker" };
-        _worker.Start();
+            _tunFd = builder.Establish();
+            if (_tunFd == null)
+            {
+                System.Diagnostics.Debug.WriteLine("FirewallVpnService: Failed to establish VPN interface");
+                StopSelf();
+                return;
+            }
+
+            _running = true;
+            _worker = new Thread(PacketLoop) { IsBackground = true, Name = "FirewallVpnWorker" };
+            _worker.Start();
+            
+            UpdateNotification();
+            System.Diagnostics.Debug.WriteLine("FirewallVpnService: VPN interface established successfully");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"FirewallVpnService: Error starting VPN: {ex}");
+            StopSelf();
+        }
     }
 
     void PacketLoop()
     {
-        var services = IPlatformApplication.Current?.Services;
-        var logRepo = services?.GetService<FirewallLogRepository>();
-        var buffer = new byte[4096];
-
-        using var input = new FileInputStream(_tunFd!.FileDescriptor);
-        using var output = new FileOutputStream(_tunFd!.FileDescriptor);
-
-        while (_running)
+        System.Diagnostics.Debug.WriteLine("FirewallVpnService: Packet loop started");
+        
+        try
         {
-            try
+            var services = IPlatformApplication.Current?.Services;
+            var logRepo = services?.GetService<FirewallLogRepository>();
+            var buffer = new byte[4096];
+
+            using var input = new FileInputStream(_tunFd!.FileDescriptor);
+            using var output = new FileOutputStream(_tunFd!.FileDescriptor);
+
+            while (_running && _tunFd != null)
             {
-                if (_rulesChanged)
+                try
                 {
-                    LoadRules();
-                    _rulesChanged = false;
-                    UpdateNotification();
-                }
-
-                int len = input.Read(buffer);
-                if (len <= 0) continue;
-
-                if (len >= 20)
-                {
-                    byte version = (byte)(buffer[0] >> 4);
-                    if (version == 4)
+                    if (_rulesChanged)
                     {
-                        string srcIp = new IPAddress(new ReadOnlySpan<byte>(buffer, 12, 4)).ToString();
-                        string dstIp = new IPAddress(new ReadOnlySpan<byte>(buffer, 16, 4)).ToString();
-                        bool blocked = _blocked.Contains(dstIp) || _blocked.Contains(srcIp);
-                        if (blocked)
+                        LoadRules();
+                        _rulesChanged = false;
+                        UpdateNotification();
+                    }
+
+                    int len = input.Read(buffer);
+                    if (len <= 0) 
+                    {
+                        Thread.Sleep(10);
+                        continue;
+                    }
+
+                    if (len >= 20)
+                    {
+                        byte version = (byte)(buffer[0] >> 4);
+                        if (version == 4)
                         {
-                            logRepo?.Add(new FirewallLogEntry(DateTime.UtcNow, "?", srcIp, dstIp, true, "IPv4", null, null, null));
-                            SendAttemptNotification(dstIp);
-                            continue;
-                        }
-                        else
-                        {
-                            logRepo?.Add(new FirewallLogEntry(DateTime.UtcNow, "?", srcIp, dstIp, false, "IPv4", null, null, null));
+                            string srcIp = new IPAddress(new ReadOnlySpan<byte>(buffer, 12, 4)).ToString();
+                            string dstIp = new IPAddress(new ReadOnlySpan<byte>(buffer, 16, 4)).ToString();
+                            bool blocked = _blocked.Contains(dstIp) || _blocked.Contains(srcIp);
+                            
+                            if (blocked)
+                            {
+                                logRepo?.Add(new FirewallLogEntry(System.DateTime.UtcNow, "?", srcIp, dstIp, true, "IPv4", null, null, null));
+                                SendAttemptNotification(dstIp);
+                                continue; // Don't forward blocked packets
+                            }
+                            else
+                            {
+                                logRepo?.Add(new FirewallLogEntry(System.DateTime.UtcNow, "?", srcIp, dstIp, false, "IPv4", null, null, null));
+                            }
                         }
                     }
-                }
 
-                output.Write(buffer, 0, len);
+                    // Forward allowed packets
+                    output.Write(buffer, 0, len);
+                }
+                catch (System.IO.IOException ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"FirewallVpnService: IO Exception: {ex.Message}");
+                    Thread.Sleep(50);
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"FirewallVpnService: Packet loop error: {ex}");
+                    Thread.Sleep(100);
+                }
             }
-            catch (System.IO.IOException)
-            {
-                Thread.Sleep(50);
-            }
-            catch
-            {
-            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"FirewallVpnService: Fatal packet loop error: {ex}");
+        }
+        finally
+        {
+            System.Diagnostics.Debug.WriteLine("FirewallVpnService: Packet loop ended");
         }
     }
 
     void UpdateNotification()
     {
-        var n = BuildStatusNotification($"Running. Blocked: {_blocked.Count}");
-        var mgr = (NotificationManager?)GetSystemService(Context.NotificationService);
-        mgr?.Notify(NotificationId, n);
+        try
+        {
+            var n = BuildStatusNotification($"Running. Blocked: {_blocked.Count}");
+            var mgr = (NotificationManager?)GetSystemService(Context.NotificationService);
+            mgr?.Notify(NotificationId, n);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"FirewallVpnService: Error updating notification: {ex}");
+        }
     }
 
     Notification BuildStatusNotification(string text)
     {
+        var pendingIntentFlags = PendingIntentFlags.UpdateCurrent;
+        if (OperatingSystem.IsAndroidVersionAtLeast(23))
+            pendingIntentFlags |= PendingIntentFlags.Immutable;
+
         var pendingIntent = PendingIntent.GetActivity(
             this,
             0,
-            new Intent(this, typeof(MainActivity)),
-            PendingIntentFlags.Immutable | PendingIntentFlags.UpdateCurrent);
+            new Intent(this, typeof(IPBlockerLogger.Platforms.Android.MainActivity)),
+            pendingIntentFlags);
 
-        return new Notification.Builder(this, NotificationChannelId)
+        var builder = new Notification.Builder(this, NotificationChannelId)
             .SetContentTitle("IP Blocker Active")
             .SetContentText(text)
             .SetSmallIcon(Android.Resource.Drawable.IcDialogInfo)
-            .SetOngoing(true)
-            .SetContentIntent(pendingIntent)
-            .Build();
+            .SetOngoing(true);
+            
+        if (pendingIntent != null)
+            builder.SetContentIntent(pendingIntent);
+            
+        return builder.Build();
     }
 
     void SendAttemptNotification(string ip)
     {
-        var mgr = (NotificationManager?)GetSystemService(Context.NotificationService);
-        var n = new Notification.Builder(this, NotificationChannelId)
-            .SetContentTitle("Blocked IP")
-            .SetContentText(ip)
-            .SetSmallIcon(Android.Resource.Drawable.IcDialogAlert)
-            .SetAutoCancel(true)
-            .Build();
-        mgr?.Notify((int)SystemClock.UptimeMillis(), n);
+        try
+        {
+            var mgr = (NotificationManager?)GetSystemService(Context.NotificationService);
+            if (mgr != null)
+            {
+                var n = new Notification.Builder(this, NotificationChannelId)
+                    .SetContentTitle("Blocked IP")
+                    .SetContentText($"Blocked connection to: {ip}")
+                    .SetSmallIcon(Android.Resource.Drawable.IcDialogAlert)
+                    .SetAutoCancel(true)
+                    .Build();
+                mgr.Notify((int)SystemClock.UptimeMillis(), n);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"FirewallVpnService: Error sending blocked notification: {ex}");
+        }
     }
 
     void CreateNotificationChannel()
@@ -177,24 +278,48 @@ public class FirewallVpnService : VpnService
         if (!OperatingSystem.IsAndroidVersionAtLeast(26))
             return;
 
-        var mgr = (NotificationManager?)GetSystemService(Context.NotificationService);
-        var ch = new NotificationChannel(NotificationChannelId, "Firewall", NotificationImportance.Low)
+        try
         {
-            Description = "Firewall status and alerts"
-        };
-        mgr?.CreateNotificationChannel(ch);
+            var mgr = (NotificationManager?)GetSystemService(Context.NotificationService);
+            if (mgr != null)
+            {
+                var ch = new NotificationChannel(NotificationChannelId, "Firewall", NotificationImportance.Low)
+                {
+                    Description = "Firewall status and alerts"
+                };
+                mgr.CreateNotificationChannel(ch);
+                System.Diagnostics.Debug.WriteLine("FirewallVpnService: Notification channel created");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"FirewallVpnService: Error creating notification channel: {ex}");
+        }
     }
 
     public override void OnDestroy()
     {
+        System.Diagnostics.Debug.WriteLine("FirewallVpnService: OnDestroy called");
+        
         base.OnDestroy();
         _running = false;
-        try { _tunFd?.Close(); } catch { }
+        
+        try 
+        { 
+            _worker?.Join(1000);
+            _tunFd?.Close(); 
+        } 
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"FirewallVpnService: Error in OnDestroy: {ex}");
+        }
+        
         _tunFd = null;
+        System.Diagnostics.Debug.WriteLine("FirewallVpnService: Service destroyed");
     }
 }
 #else
-namespace IP_Blocker_Logger
+namespace IPBlockerLogger
 {
     public class FirewallVpnService
     {

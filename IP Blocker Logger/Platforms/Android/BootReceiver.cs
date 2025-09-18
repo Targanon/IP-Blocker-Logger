@@ -1,10 +1,13 @@
+#if ANDROID
 using Android.Content;
 using Android.App;
+using Android.Runtime;
 
-namespace IP_Blocker_Logger;
+namespace IPBlockerLogger;
 
 [BroadcastReceiver(Enabled = true, Exported = true)]
-[IntentFilter(new[] { Intent.ActionBootCompleted })]
+[IntentFilter([Intent.ActionBootCompleted])]
+[Preserve(AllMembers = true)]
 public class BootReceiver : BroadcastReceiver
 {
     public override void OnReceive(Context? context, Intent? intent)
@@ -18,3 +21,4 @@ public class BootReceiver : BroadcastReceiver
         }
     }
 }
+#endif

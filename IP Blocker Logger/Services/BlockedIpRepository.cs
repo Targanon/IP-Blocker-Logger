@@ -1,5 +1,9 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using System.Collections.Generic;
+using System.Linq; // Add this using directive for LINQ extension methods
+using Microsoft.Maui.Storage;
+using System; // <-- Add this using directive for StringComparer
 
 namespace IP_Blocker_Logger.Services;
 
@@ -22,7 +26,7 @@ public class BlockedIpRepository
             {
                 try
                 {
-                    var items = JsonSerializer.Deserialize<List<BlockedIpEntry>>(json) ?? new();
+                    var items = JsonSerializer.Deserialize<List<BlockedIpEntry>>(json) ?? new List<BlockedIpEntry>();
                     foreach (var i in items)
                         _cache[i.Address] = i;
                 }

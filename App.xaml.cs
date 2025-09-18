@@ -1,15 +1,14 @@
-﻿namespace IP_Blocker_Logger
-{
-    public partial class App : Application
-    {
-        public App()
-        {
-            InitializeComponent();
-        }
+﻿using Microsoft.Maui;
+using Microsoft.Maui.Controls;
 
-        protected override Window CreateWindow(IActivationState? activationState)
-        {
-            return new Window(new AppShell());
-        }
+namespace IP_Blocker_Logger;
+
+public partial class App : Application
+{
+    public App()
+    {
+        InitializeComponent();
     }
+
+    protected override Window CreateWindow(IActivationState? activationState) => new(new AppShell());
 }

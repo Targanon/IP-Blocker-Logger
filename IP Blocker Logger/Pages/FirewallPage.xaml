@@ -2,14 +2,14 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="IP_Blocker_Logger.Pages.FirewallPage"
-             Title="Firewall">
+             Title="IP Blocker">
     <VerticalStackLayout Padding="16" Spacing="12">
         <HorizontalStackLayout>
             <Entry x:Name="IpEntry" Placeholder="IP (e.g. 8.8.8.8)" HorizontalOptions="FillAndExpand"/>
             <Button Text="Add" Clicked="OnAdd" />
         </HorizontalStackLayout>
 
-        <Button x:Name="StartStopButton" Text="Start Firewall" Clicked="OnToggleFirewall"/>
+        <Button x:Name="StartStopButton" Text="Start IP Blocking" Clicked="OnToggleFirewall"/>
 
         <Label Text="Blocked IPs:" FontAttributes="Bold"/>
 

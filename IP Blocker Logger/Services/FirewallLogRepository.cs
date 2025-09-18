@@ -1,5 +1,10 @@
+#nullable enable
+using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
+using Microsoft.Maui.Storage; // Add this using directive
 
 namespace IP_Blocker_Logger.Services;
 
@@ -18,8 +23,7 @@ public class FirewallLogRepository
             {
                 try
                 {
-                    var list = JsonSerializer.Deserialize<List<FirewallLogEntry>>(json) ?? new();
-                    foreach (var e in list)
+                    foreach (var e in JsonSerializer.Deserialize<List<FirewallLogEntry>>(json) ?? new List<FirewallLogEntry>())
                         _entries.Enqueue(e);
                 }
                 catch { }
@@ -27,7 +31,7 @@ public class FirewallLogRepository
         }
     }
 
-    public IEnumerable<FirewallLogEntry> GetLatest(int count = 100) => _entries.Reverse().Take(count);
+    public IEnumerable<FirewallLogEntry> GetLatest(int count = 100) => _entries.ToArray().Reverse().Take(count);
 
     public void Add(FirewallLogEntry entry)
     {
@@ -43,7 +47,7 @@ public class FirewallLogRepository
 }
 
 public record FirewallLogEntry(
-    DateTime TimestampUtc,
+    System.DateTime TimestampUtc,
     string Direction,
     string SourceIp,
     string DestIp,
@@ -52,3 +56,4 @@ public record FirewallLogEntry(
     int? SourcePort,
     int? DestPort,
     string? AppPackage);
+#nullable restore

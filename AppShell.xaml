@@ -7,7 +7,7 @@
     Title="IP Blocker Logger">
 
     <ShellContent
-        Title="Firewall"
+        Title="IP Blocker"
         ContentTemplate="{DataTemplate pages:FirewallPage}"
         Route="FirewallPage" />
 

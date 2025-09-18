@@ -1,14 +1,54 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net9.0-android;net9.0-ios</TargetFrameworks>
+    <TargetFrameworks>net9.0-android</TargetFrameworks>
+    <OutputType>Exe</OutputType>
     <UseMaui>true</UseMaui>
-    <RuntimeIdentifiers>android-arm64;android-x64;ios-arm64;iossimulator-x64;iossimulator-arm64</RuntimeIdentifiers>
+    <SingleProject>true</SingleProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RuntimeIdentifiers>android-arm64;android-x64</RuntimeIdentifiers>
+    <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">32.0</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <Description>IP Blocker and Logger</Description>
+    <Copyright>Public end user licence and ME</Copyright>
+
+    <!-- Application -->
+    <ApplicationTitle>IP Blocker Logger</ApplicationTitle>
+    <ApplicationId>com.example.ipblocker</ApplicationId>
+    <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+    <ApplicationVersion>1</ApplicationVersion>
+    
+    <!-- Android specific -->
+    <AndroidPackageFormat>apk</AndroidPackageFormat>
+    <PublishTrimmed>false</PublishTrimmed>
+    
+    <!-- Linker settings for Android -->
+    <AndroidLinkMode>None</AndroidLinkMode>
+    <TrimMode>partial</TrimMode>
   </PropertyGroup>
 
-  <!-- Only include the image if it actually exists -->
-  <ItemGroup Condition="Exists('Resources/Images/dotnet_bot.png')">
-    <MauiImage Include="Resources/Images/dotnet_bot.png" />
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0-android|AnyCPU'">
+    <WarningLevel>0</WarningLevel>
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+    <AndroidLinkMode>None</AndroidLinkMode>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net9.0-android|AnyCPU'">
+    <WarningLevel>0</WarningLevel>
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+    <AndroidLinkMode>SdkOnly</AndroidLinkMode>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Maui.Controls" Version="9.0.82" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.0" />
+  </ItemGroup>
+
+  <!-- Linker preservation -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net9.0-android'">
+    <AndroidLinkPreserve Include="Microsoft.Maui" />
+    <AndroidLinkPreserve Include="Microsoft.Maui.Controls" />
+    <AndroidLinkPreserve Include="Microsoft.Maui.Hosting" />
   </ItemGroup>
 
 </Project>
