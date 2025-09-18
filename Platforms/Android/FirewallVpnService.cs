@@ -18,6 +18,7 @@ namespace IPBlockerLogger;
          Permission = "android.permission.BIND_VPN_SERVICE",
          ForegroundServiceType = Android.Content.PM.ForegroundService.TypeConnectedDevice)]
 [Preserve(AllMembers = true)]
+[Register("com.example.ipblocker.FirewallVpnService")]
 public class FirewallVpnService : VpnService
 {
     const string NotificationChannelId = "firewall_channel";

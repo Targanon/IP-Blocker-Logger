@@ -7,7 +7,7 @@
     <SingleProject>true</SingleProject>
     <ImplicitUsings>enable</ImplicitUsings>
     <RuntimeIdentifiers>android-arm64;android-x64</RuntimeIdentifiers>
-    <SupportedOSPlatformVersion>35.0</SupportedOSPlatformVersion>
+    <SupportedOSPlatformVersion>21.0</SupportedOSPlatformVersion>
     <Nullable>enable</Nullable>
     <Description>IP Blocker and Logger - Android Only</Description>
     <Copyright>Public end user licence and ME</Copyright>
@@ -20,23 +20,50 @@
     
     <!-- Android specific -->
     <AndroidPackageFormat>apk</AndroidPackageFormat>
-    <PublishTrimmed>false</PublishTrimmed>
     
-    <!-- Linker settings for Android -->
+    <!-- DISABLE ALL TRIMMING AND LINKING COMPLETELY -->
+    <PublishTrimmed>false</PublishTrimmed>
+    <TrimMode>none</TrimMode>
     <AndroidLinkMode>None</AndroidLinkMode>
-    <TrimMode>partial</TrimMode>
+    <AndroidUseSharedRuntime>false</AndroidUseSharedRuntime>
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
+    <AndroidFastDev>false</AndroidFastDev>
+    <AndroidUseAssemblyStore>false</AndroidUseAssemblyStore>
+    <RunAOTCompilation>false</RunAOTCompilation>
+    
+    <!-- Fix APK corruption issues -->
+    <AndroidUseAapt2>true</AndroidUseAapt2>
+    <AndroidCreatePackagePerAbi>false</AndroidCreatePackagePerAbi>
+    
+    <!-- Force preservation -->
+    <TrimmerDefaultAction>copy</TrimmerDefaultAction>
+    <IsTrimmable>false</IsTrimmable>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0-android|AnyCPU'">
     <WarningLevel>0</WarningLevel>
     <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
     <AndroidLinkMode>None</AndroidLinkMode>
+    <AndroidUseSharedRuntime>false</AndroidUseSharedRuntime>
+    <AndroidFastDev>false</AndroidFastDev>
+    <AndroidUseAssemblyStore>false</AndroidUseAssemblyStore>
+    <PublishTrimmed>false</PublishTrimmed>
+    <TrimMode>none</TrimMode>
+    <RunAOTCompilation>false</RunAOTCompilation>
+    <IsTrimmable>false</IsTrimmable>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net9.0-android|AnyCPU'">
     <WarningLevel>0</WarningLevel>
     <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
-    <AndroidLinkMode>SdkOnly</AndroidLinkMode>
+    <AndroidLinkMode>None</AndroidLinkMode>
+    <AndroidUseSharedRuntime>false</AndroidUseSharedRuntime>
+    <AndroidFastDev>false</AndroidFastDev>
+    <AndroidUseAssemblyStore>false</AndroidUseAssemblyStore>
+    <PublishTrimmed>false</PublishTrimmed>
+    <TrimMode>none</TrimMode>
+    <RunAOTCompilation>false</RunAOTCompilation>
+    <IsTrimmable>false</IsTrimmable>
   </PropertyGroup>
 
   <ItemGroup>
@@ -44,11 +71,31 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="9.0.0" />
   </ItemGroup>
 
-  <!-- Linker preservation -->
+  <!-- FORCE ASSEMBLY PRESERVATION -->
+  <ItemGroup>
+    <TrimmerRootAssembly Include="Microsoft.Maui" />
+    <TrimmerRootAssembly Include="Microsoft.Maui.Controls" />
+    <TrimmerRootAssembly Include="Microsoft.Maui.Hosting" />
+    <TrimmerRootAssembly Include="Microsoft.Maui.Essentials" />
+    <TrimmerRootAssembly Include="IP Blocker Logger" />
+    <TrimmerRootAssembly Include="Mono.Android" />
+    <TrimmerRootAssembly Include="System.Private.CoreLib" />
+    <TrimmerRootAssembly Include="System.Runtime" />
+    <TrimmerRootAssembly Include="Java.Interop" />
+  </ItemGroup>
+
+  <!-- Android Link Preserve -->
   <ItemGroup>
     <AndroidLinkPreserve Include="Microsoft.Maui" />
     <AndroidLinkPreserve Include="Microsoft.Maui.Controls" />
     <AndroidLinkPreserve Include="Microsoft.Maui.Hosting" />
+    <AndroidLinkPreserve Include="Microsoft.Maui.Essentials" />
+    <AndroidLinkPreserve Include="IPBlockerLogger" />
+    <AndroidLinkPreserve Include="IP_Blocker_Logger" />
+    <AndroidLinkPreserve Include="Mono.Android" />
+    <AndroidLinkPreserve Include="System.Private.CoreLib" />
+    <AndroidLinkPreserve Include="System.Runtime" />
+    <AndroidLinkPreserve Include="Java.Interop" />
   </ItemGroup>
 
   <ItemGroup>

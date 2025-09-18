@@ -1,0 +1,19 @@
+<Project>
+  <!-- Completely disable all trimming and linking -->
+  <PropertyGroup>
+    <PublishTrimmed>false</PublishTrimmed>
+    <TrimMode>none</TrimMode>
+    <AndroidLinkMode>None</AndroidLinkMode>
+    <IsTrimmable>false</IsTrimmable>
+    <TrimmerDefaultAction>copy</TrimmerDefaultAction>
+  </PropertyGroup>
+  
+  <!-- Override any trimming targets -->
+  <Target Name="PreventTrimming" BeforeTargets="PrepareForILLink;ILLink">
+    <PropertyGroup>
+      <PublishTrimmed>false</PublishTrimmed>
+      <TrimMode>none</TrimMode>
+      <IsTrimmable>false</IsTrimmable>
+    </PropertyGroup>
+  </Target>
+</Project>

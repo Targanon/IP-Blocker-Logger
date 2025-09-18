@@ -1,0 +1,9 @@
+Microsoft.Maui
+Microsoft.Maui.Controls
+Microsoft.Maui.Hosting
+Microsoft.Maui.Essentials
+IP Blocker Logger
+Mono.Android
+System.Private.CoreLib
+System.Runtime
+Java.Interop
