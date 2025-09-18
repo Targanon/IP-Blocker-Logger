@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="IP_Blocker_Logger.Pages.FirewallPage"
+             Title="Firewall">
+    <VerticalStackLayout Padding="16" Spacing="12">
+        <HorizontalStackLayout>
+            <Entry x:Name="IpEntry" Placeholder="IP (e.g. 8.8.8.8)" HorizontalOptions="FillAndExpand"/>
+            <Button Text="Add" Clicked="OnAdd" />
+        </HorizontalStackLayout>
+
+        <Button x:Name="StartStopButton" Text="Start Firewall" Clicked="OnToggleFirewall"/>
+
+        <Label Text="Blocked IPs:" FontAttributes="Bold"/>
+
+        <CollectionView x:Name="IpList" HeightRequest="180">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <SwipeView>
+                        <SwipeView.RightItems>
+                            <SwipeItems>
+                                <SwipeItem Text="Delete" BackgroundColor="Red" CommandParameter="{Binding Address}" Invoked="OnDelete"/>
+                            </SwipeItems>
+                        </SwipeView.RightItems>
+                        <Grid Padding="4" ColumnDefinitions="*,Auto">
+                            <Label Text="{Binding Address}" />
+                            <Switch Grid.Column="1" IsToggled="{Binding Enabled}" Toggled="OnToggleSwitch"/>
+                        </Grid>
+                    </SwipeView>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <Label Text="Recent Events:" FontAttributes="Bold"/>
+
+        <CollectionView x:Name="LogList" HeightRequest="200">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <VerticalStackLayout Padding="4">
+                        <Label FontSize="12" Text="{Binding TimestampUtc}"/>
+                        <Label FontSize="12" Text="{Binding Protocol}"/>
+                        <Label FontSize="12" Text="{Binding Direction}"/>
+                        <Label FontSize="12">
+                            <Label.FormattedText>
+                                <FormattedString>
+                                    <Span Text="{Binding SourceIp}" />
+                                    <Span Text=" -> " />
+                                    <Span Text="{Binding DestIp}" />
+                                    <Span Text=" (Blocked: " />
+                                    <Span Text="{Binding Blocked}" />
+                                    <Span Text=")" />
+                                </FormattedString>
+                            </Label.FormattedText>
+                        </Label>
+                    </VerticalStackLayout>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+    </VerticalStackLayout>
+</ContentPage>

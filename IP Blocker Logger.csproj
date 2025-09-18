@@ -1,0 +1,14 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>net9.0-android;net9.0-ios</TargetFrameworks>
+    <UseMaui>true</UseMaui>
+    <RuntimeIdentifiers>android-arm64;android-x64;ios-arm64;iossimulator-x64;iossimulator-arm64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <!-- Only include the image if it actually exists -->
+  <ItemGroup Condition="Exists('Resources/Images/dotnet_bot.png')">
+    <MauiImage Include="Resources/Images/dotnet_bot.png" />
+  </ItemGroup>
+
+</Project>
